@@ -15,7 +15,7 @@ class MapException(Exception):
 
 class DynMap(object):
 
-    def __init__(self, url):
+    def __init__(self, url, image_format):
         # super(DynMap, self).__init__(*args, **kwargs)
         self.url = url.rstrip('/')
 
@@ -24,14 +24,14 @@ class DynMap(object):
         self._config = None
         self._config_urls = None
         self._worlds = {}
-
+        self._image_format = image_format
         #self.urls  # force init dynmap urls from server or from property
         self._init()
 
     def _init(self):
         for c in self.config['worlds']:
             # print(c)
-            w = World(c)
+            w = World(c, self._image_format)
             self._worlds[w.name] = w
 
     def _download_config(self):
@@ -82,14 +82,15 @@ class DynMap(object):
 
 
 class World(object):
-    def __init__(self, world_config):
+    def __init__(self, world_config, image_format):
         self._config = world_config
         self._maps = {}
+        self._image_format = image_format
         self._init()
 
     def _init(self):
         for c in self._config['maps']:
-            m = Map(c, self.name)
+            m = Map(c, self.name, self._image_format)
             self._maps[m.name] = m
 
     @property
@@ -109,9 +110,10 @@ class Map(object):
     # PERSPECTIVES = ['iso_SE_30_hires', 'iso_SE_30_lowres', 'iso_SE_60_hires', 'iso_SE_60_lowres', 'iso_S_90_hires', 'iso_S_90_lowres']
     # SHADERS = ['stdtexture', 'cave']
 
-    def __init__(self, map_config, world):
+    def __init__(self, map_config, world, image_format):
         self._config = map_config
         self._world = world
+        self._image_format = image_format
         # if not Map.is_known_perspective(self.perspective):
         #     raise MapException(self, 'Unknown perspective "%s"' % self.perspective)
         # if not Map.is_known_shader(self.shader):
@@ -131,7 +133,7 @@ class Map(object):
         chunk_y = math.floor(t_loc.y / 32.0)
         dashes = ('' if zoom == 0 else ('z' * zoom) + '_')
 
-        image_url = '/tiles/%s/%s/%d_%d/%s%d_%d.png' % (self._world, self.prefix, chunk_x, chunk_y, dashes, t_loc.x, t_loc.y)
+        image_url = '/tiles/%s/%s/%d_%d/%s%d_%d.%s' % (self._world, self.prefix, chunk_x, chunk_y, dashes, t_loc.x, t_loc.y, self._image_format)
         return image_url
 
     @property

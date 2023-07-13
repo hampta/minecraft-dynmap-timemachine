@@ -25,6 +25,9 @@ List of all parameter is as follows:
     
     optional arguments:
       -h, --help            show this help message and exit
+      -nc, --no-clean       do not clean up temporary files
+      -f, --format          output format, one of: png, jpg, webp, default: png
+      -th, --threads        number of threads to use, default: 4
       --list-worlds         list available worlds from this Dynmap server and exit
       --list-maps           list available maps for this world and exit
       -t [THRESHOLD], --threshold [THRESHOLD]

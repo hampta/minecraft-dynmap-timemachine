@@ -21,7 +21,11 @@ if __name__ == '__main__':
     parser.add_argument('center', nargs='?', help='minecraft cooridnates, use format: [x,y,z]')
     parser.add_argument('boundary_size', nargs='?', help='size in tiles, use format: [w,h]')
     parser.add_argument('zoom', nargs='?', default='0', help='zoom level, 0 = maximum zoom in')
-    parser.add_argument('dest', nargs='?', help='output file name or directory')
+    parser.add_argument('dest', nargs='?', help='output file name or directory, without extension(format)')
+    parser.add_argument('-f', '--image-format', default='png', help='output file format, default: png')
+    parser.add_argument('-th', '--threads', default='16', help='number of threads to use, default: 16')
+    parser.add_argument('-cd', '--cache-dir', default='./.cache', help='cache directory, default: ./.cache')
+    parser.add_argument('-nc',  '--no-clean', action='store_true', help='do not clean cache before starting')
     # parser.add_argument('out_dir')
     # parser.add_argument('-t', '--type', default='flat')
     parser.add_argument('--list-worlds', action='store_true', help='list available worlds from this Dynmap server and exit')
@@ -42,8 +46,11 @@ if __name__ == '__main__':
 
     logging.debug('args: %s', str(args))
 
+    if args.image_format not in ['png', 'jpg', 'webp']:
+        logging.error('Only png, jpg and webp are supported')
+        sys.exit(1)
 
-    dm = dynmap.DynMap(args.base_url)
+    dm = dynmap.DynMap(args.base_url, args.image_format)
 
     if args.list_worlds:
         worlds = dm.worlds
@@ -67,8 +74,12 @@ if __name__ == '__main__':
                 print('%s - %s' % (name, maps[name].title))
             sys.exit(0)
 
-    if args.world and args.map and args.center and args.boundary_size and args.dest and args.zoom:
+    if args.world and args.map and args.center and args.boundary_size and args.dest and args.zoom and args.threads:
         maps = dm.worlds[args.world].maps
+
+        if int(args.threads) < 1:
+            logging.error('threads must be a positive integer')
+            sys.exit(1)
 
         if args.map not in maps.keys():
             logging.error('map not found, use: dynmap-timemachine.py http://dynmap-address world_name map_name [x,y,z] [width,height]')
@@ -84,13 +95,13 @@ if __name__ == '__main__':
         dm_map = maps[args.map]
         m_loc = projection.MinecraftLocation(center[0], center[1], center[2], dm_map.worldtomap)
 
-        tm = time_machine.TimeMachine(dm)
-        dest = args.dest
+        tm = time_machine.TimeMachine(dm, int(args.threads), args.cache_dir, not args.no_clean)
+        dest = f"{args.dest}.{args.image_format}"
         zoom = int(args.zoom)
         img = tm.capture_single(dm_map, m_loc.to_tile_location(zoom), size)
 
         if os.path.isdir(dest):
-            files = list(glob.iglob(os.path.join(dest, '*.png')))
+            files = list(glob.iglob(os.path.join(dest, f'*.{args.image_format}')))
             difference = 0
             if files:
                 newest_image = max(files, key=os.path.getctime)
@@ -98,7 +109,7 @@ if __name__ == '__main__':
                 threshold = float(args.threshold)
 
             if not files or difference >= threshold:
-                dest = os.path.join(dest, time.strftime('%Y-%m-%d %H-%M-%S') + '.png')
+                dest = os.path.join(dest, time.strftime('%Y-%m-%d %H-%M-%S') + '.' + args.image_format)
                 img.save(dest)
                 logging.info('saving timelapse image to "%s" (%d KB) with difference %.2f', dest, os.path.getsize(dest) / 1000, difference * 100)
         else:
