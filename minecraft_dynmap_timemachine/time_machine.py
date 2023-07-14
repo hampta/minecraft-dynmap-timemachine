@@ -5,6 +5,7 @@ import time
 from threading import Thread
 
 from PIL import Image
+import progressbar
 from progressbar import ETA, Bar, Percentage, ProgressBar
 
 from . import projection, simple_downloader
@@ -25,13 +26,15 @@ class TimeMachine(object):
     def _download_tile_thread(self, url):
         filename = url.split('/')[-1]
         if os.path.exists('{}/{}'.format(self.cache_path, filename)) and os.path.getsize('{}/{}'.format(self.cache_path, filename)) > 0:
-            logging.info('tile already downloaded: %s', filename)
+            logging.debug('Tile already downloaded: %s', filename)
             return
         try:
             img_data = simple_downloader.download(url, True)
             # save image data to cache folder
             stream = io.BytesIO(img_data)
             img = Image.open(stream)
+            if filename.endswith('.jpg'):
+                img = img.convert('RGB')
             with open(f"{self.cache_path}/{filename}", 'wb') as f:
                 img.save(f)
         except Exception as e:
@@ -61,17 +64,15 @@ class TimeMachine(object):
         zoomed_scale = projection.zoomed_scale(t_loc.zoom)
 
         width, height = (abs(to_tile.x - from_tile.x) * 128 / zoomed_scale, abs(to_tile.y - from_tile.y) * 128 / zoomed_scale)
-        logging.info('final size in px: [%d, %d]', width, height)
+        logging.info('Final size in px: [%d, %d]', width, height)
         dest_img = Image.new('RGB', (int(width), int(height)))
 
-        logging.info('downloading tiles...')
+        logging.info('Downloading tiles...')
         # logging.info('tile image path: %s', image_url)
-        total_tiles = len(range(from_tile.x, to_tile.x, zoomed_scale)) * len(range(from_tile.y, to_tile.y, zoomed_scale))
 
-        widgets = ['Test: ', Percentage(), ' ', Bar(marker='0', left='[', right=']'),
-                   ' ', ETA()]
+        widgets = ['Download Tiles: ', Percentage(), ' ', Bar(marker='\u2588', fill='\u2591'), ' ', ETA()]
         pbar = ProgressBar(widgets=widgets, maxval=(((to_tile.x-from_tile.x)/zoomed_scale) *
-                                                    ((to_tile.y-from_tile.y)/zoomed_scale)))
+                                                    ((to_tile.y-from_tile.y)/zoomed_scale)), term_width=96)
 
         processed = 0
         for x in range(from_tile.x, to_tile.x, zoomed_scale):
@@ -83,15 +84,22 @@ class TimeMachine(object):
                 img_url = self._dm_map.url + img_rel_path
                 processed += 1
                 pbar.update(processed)
-                logging.info('Download tile %d/%d [%d, %d]', processed, total_tiles, x, y)
+                # logging.info('Download tile %d/%d [%d, %d]', processed, total_tiles, x, y)
                 th = Thread(target=self._download_tile_thread, args=(img_url,))
                 th.start()
                 self.download_threads.append(th)
 
         # wait for threads to finish
         self._clear_threads()
-        
+        pbar.finish()
+
         # combine tiles into one image
+        logging.info('Combining tiles...')
+
+        widgets = ['Combine Tiles:  ', Percentage(), ' ', Bar(marker='\u2588', fill='\u2591'), ' ', ETA()]
+        pbar = ProgressBar(widgets=widgets, maxval=(((to_tile.x-from_tile.x)/zoomed_scale) *
+                                                    ((to_tile.y-from_tile.y)/zoomed_scale)), term_width=96)
+
         processed = 0
         for x in range(from_tile.x, to_tile.x, zoomed_scale):
             for y in range(from_tile.y, to_tile.y, zoomed_scale):
@@ -99,7 +107,8 @@ class TimeMachine(object):
                 filename = img_rel_path.split('/')[-1]
                 img_path = f"{self.cache_path}/{filename}"
                 processed += 1
-                logging.info('Combine tile %d/%d [%d, %d]', processed, total_tiles, x, y)
+                pbar.update(processed)
+                # logging.info('Combine tile %d/%d [%d, %d]', processed, total_tiles, x, y)
                 try:
                     im = Image.open(img_path)
                 except Exception as e:
@@ -107,8 +116,9 @@ class TimeMachine(object):
                     continue
 
                 box = (int(abs(x - from_tile.x) * 128 / zoomed_scale), int((abs(to_tile.y - y) - zoomed_scale) * 128 / zoomed_scale))
-                logging.debug('place to [%d, %d]', box[0], box[1])
+                logging.debug('Place to [%d, %d]', box[0], box[1])
                 dest_img.paste(im, box)
+        pbar.finish()
 
         return dest_img
 

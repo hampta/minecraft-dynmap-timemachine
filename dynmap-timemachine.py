@@ -54,21 +54,21 @@ if __name__ == '__main__':
 
     if args.list_worlds:
         worlds = dm.worlds
-        logging.info('available worlds: %s', str(worlds))
+        logging.info('Available worlds: %s', str(worlds))
         for name in worlds.keys():
             print('%s - %s' % (name, worlds[name].title))
         sys.exit(0)
 
     if args.world:
         if not args.world:
-            logging.error('no world set, use: dynmap-timemachine.py http://dynmap-address world_name')
+            logging.error('No world set, use: dynmap-timemachine.py http://dynmap-address world_name')
             sys.exit(1)
         if args.world not in dm.worlds.keys():
             logging.error('This world doesn\'t exist.\nAvailable worlds: %s', dm.worlds.keys())
             sys.exit(1)
 
         if args.list_maps:
-            logging.info('available maps for world "%s": %s', args.world, dm.worlds[args.world].maps)
+            logging.info('Available maps for world "%s": %s', args.world, dm.worlds[args.world].maps)
             maps = dm.worlds[args.world].maps
             for name in maps.keys():
                 print('%s - %s' % (name, maps[name].title))
@@ -78,11 +78,11 @@ if __name__ == '__main__':
         maps = dm.worlds[args.world].maps
 
         if int(args.threads) < 1:
-            logging.error('threads must be a positive integer')
+            logging.error('Threads must be a positive integer')
             sys.exit(1)
 
         if args.map not in maps.keys():
-            logging.error('map not found, use: dynmap-timemachine.py http://dynmap-address world_name map_name [x,y,z] [width,height]')
+            logging.error('Map not found, use: dynmap-timemachine.py http://dynmap-address world_name map_name [x,y,z] [width,height]')
             for name in maps.keys():
                 print('%s - %s' % (name, maps[name].title))
             sys.exit(1)
@@ -111,9 +111,9 @@ if __name__ == '__main__':
             if not files or difference >= threshold:
                 dest = os.path.join(dest, time.strftime('%Y-%m-%d %H-%M-%S') + '.' + args.image_format)
                 img.save(dest)
-                logging.info('saving timelapse image to "%s" (%d KB) with difference %.2f', dest, os.path.getsize(dest) / 1000, difference * 100)
+                logging.info('Saving timelapse image to "%s" (%d KB) with difference %.2f', dest, os.path.getsize(dest) / 1000, difference * 100)
         else:
             img.save(dest)
-            logging.info('saving image to "%s" (%d KB)', dest, os.path.getsize(dest) / 1000)
+            logging.info('Saving image to "%s" (%d KB)', dest, os.path.getsize(dest) / 1000)
 
         # sys.exit(0)
